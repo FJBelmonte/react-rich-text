@@ -1,17 +1,35 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { createEditor, Editor, Transforms, Text } from "slate";
+import { createEditor, Editor, Transforms, Text, Node } from "slate";
 import { Slate, withReact, Editable } from "slate-react";
+
+// Define a serializing function that takes a value and returns a string.
+const serialize = value => {
+  return (
+    value
+      // Return the string content of each paragraph in the value's children.
+      .map(n => Node.string(n))
+      // Join them all with line breaks denoting paragraphs.
+      .join("\n")
+  );
+};
+
+// Define a deserializing function that takes a string and returns a value.
+const deserialize = string => {
+  // Return a value array of children derived by splitting the string.
+  return string.split("\n").map(line => {
+    return {
+      children: [{ text: line }]
+    };
+  });
+};
 
 export default function TextEditor() {
   // Create a Slate editor object that won't change across renders.
   const editor = useMemo(() => withReact(createEditor()), []);
 
-  const [value, setValue] = useState([
-    {
-      type: "paragraph",
-      children: [{ text: "A line of text in a paragraph." }]
-    }
-  ]);
+  const [value, setValue] = useState(
+    deserialize(localStorage.getItem("content") || "")
+  );
 
   const renderElement = useCallback(props => {
     switch (props.element.type) {
@@ -28,7 +46,13 @@ export default function TextEditor() {
   }, []);
 
   return (
-    <Slate editor={editor} value={value} onChange={value => setValue(value)}>
+    <Slate
+      editor={editor}
+      value={value}
+      onChange={value => {
+        setValue(value);
+        localStorage.setItem("content", serialize(value));
+      }}>
       <div>
         <button
           onMouseDown={event => {
@@ -49,11 +73,6 @@ export default function TextEditor() {
         editor={editor}
         renderElement={renderElement}
         renderLeaf={renderLeaf}
-        onChange={value => {
-          setValue(value);
-          const content = JSON.stringify(value);
-          localStorage.setItem("content", content);
-        }}
         onKeyDown={event => {
           if (!event.ctrlKey) {
             return;
