@@ -1,17 +1,49 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { createEditor, Editor, Transforms, Text } from "slate";
+import { createEditor, Editor, Transforms, Text, Node } from "slate";
 import { Slate, withReact, Editable } from "slate-react";
+
+import Toolbar from "components/Toolbar";
+
+import { CustomEditor } from "Utils/CustomEditor";
+
+const ITEMS = [
+  { name: "bold", active: false },
+  { name: "italic", active: false },
+  { name: "underline", active: false },
+  { name: "code", active: false },
+  { name: "quote right", active: false },
+  { name: "list", active: false },
+  { name: "list ol", active: false }
+];
+
+// Define a serializing function that takes a value and returns a string.
+const serialize = value => {
+  return (
+    value
+      // Return the string content of each paragraph in the value's children.
+      .map(n => Node.string(n))
+      // Join them all with line breaks denoting paragraphs.
+      .join("\n")
+  );
+};
+
+// Define a deserializing function that takes a string and returns a value.
+const deserialize = string => {
+  // Return a value array of children derived by splitting the string.
+  return string.split("\n").map(line => {
+    return {
+      children: [{ text: line }]
+    };
+  });
+};
 
 export default function TextEditor() {
   // Create a Slate editor object that won't change across renders.
   const editor = useMemo(() => withReact(createEditor()), []);
 
-  const [value, setValue] = useState([
-    {
-      type: "paragraph",
-      children: [{ text: "A line of text in a paragraph." }]
-    }
-  ]);
+  const [value, setValue] = useState(
+    deserialize(localStorage.getItem("content") || "")
+  );
 
   const renderElement = useCallback(props => {
     switch (props.element.type) {
@@ -22,14 +54,36 @@ export default function TextEditor() {
     }
   }, []);
 
+  function handleToolbar(button, editor) {
+    switch (button) {
+      case "bold":
+      case "italic":
+      case "underline":
+        CustomEditor.toggleMark(editor, button);
+        break;
+    }
+  }
+
   // Define a leaf rendering function that is memoized with `useCallback`.
   const renderLeaf = useCallback(props => {
     return <Leaf {...props} />;
   }, []);
 
   return (
-    <Slate editor={editor} value={value} onChange={value => setValue(value)}>
+    <Slate
+      editor={editor}
+      value={value}
+      onChange={value => {
+        setValue(value);
+        localStorage.setItem("content", serialize(value));
+      }}>
       <div>
+        <Toolbar
+          items={ITEMS}
+          onClick={name => {
+            handleToolbar(name, editor);
+          }}
+        />
         <button
           onMouseDown={event => {
             event.preventDefault();
@@ -49,11 +103,6 @@ export default function TextEditor() {
         editor={editor}
         renderElement={renderElement}
         renderLeaf={renderLeaf}
-        onChange={value => {
-          setValue(value);
-          const content = JSON.stringify(value);
-          localStorage.setItem("content", content);
-        }}
         onKeyDown={event => {
           if (!event.ctrlKey) {
             return;
@@ -90,49 +139,18 @@ const DefaultElement = props => {
   return <p {...props.attributes}>{props.children}</p>;
 };
 
-const Leaf = props => {
-  return (
-    <span
-      {...props.attributes}
-      style={{ fontWeight: props.leaf.bold ? "bold" : "normal" }}>
-      {props.children}
-    </span>
-  );
-};
-
-const CustomEditor = {
-  isBoldMarkActive(editor) {
-    const [match] = Editor.nodes(editor, {
-      match: n => n.bold === true,
-      universal: true
-    });
-
-    return !!match;
-  },
-
-  isCodeBlockActive(editor) {
-    const [match] = Editor.nodes(editor, {
-      match: n => n.type === "code"
-    });
-
-    return !!match;
-  },
-
-  toggleBoldMark(editor) {
-    const isActive = CustomEditor.isBoldMarkActive(editor);
-    Transforms.setNodes(
-      editor,
-      { bold: isActive ? null : true },
-      { match: n => Text.isText(n), split: true }
-    );
-  },
-
-  toggleCodeBlock(editor) {
-    const isActive = CustomEditor.isCodeBlockActive(editor);
-    Transforms.setNodes(
-      editor,
-      { type: isActive ? null : "code" },
-      { match: n => Editor.isBlock(editor, n) }
-    );
+const Leaf = ({ attributes, leaf, children }) => {
+  if (leaf.bold) {
+    children = <strong>{children}</strong>;
   }
+  if (leaf.code) {
+    children = <code>{children}</code>;
+  }
+  if (leaf.italic) {
+    children = <em>{children}</em>;
+  }
+  if (leaf.underline) {
+    children = <u>{children}</u>;
+  }
+  return <span {...attributes}>{children}</span>;
 };
