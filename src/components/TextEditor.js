@@ -53,7 +53,7 @@ export default function TextEditor() {
     if (type === "mark") {
       CustomEditor.toggleMark(editor, button);
     }
-    if (type === "bold") {
+    if (type === "block") {
       CustomEditor.toggleBlock(editor, button);
     }
     forceUpdate();
