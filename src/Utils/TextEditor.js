@@ -21,6 +21,7 @@ export const CustomEditor = {
     }
   },
 
+  // Verfify if node is a block
   isBlockActive(editor, format) {
     const [match] = Editor.nodes(editor, {
       match: n => n.type === format
@@ -29,6 +30,7 @@ export const CustomEditor = {
     return !!match;
   },
 
+  // Toggle node as block
   toggleBlock(editor, format) {
     const isActive = CustomEditor.isBlockActive(editor, format);
     const isList = LIST_TYPES.includes(format);
@@ -57,7 +59,6 @@ export const Element = ({ attributes, children, element }) => {
           <code>{children}</code>
         </pre>
       );
-      break;
     case "quote right":
       return <blockquote {...attributes}>{children}</blockquote>;
     case "list":
