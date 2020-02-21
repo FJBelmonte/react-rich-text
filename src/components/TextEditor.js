@@ -1,73 +1,70 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { createEditor, Editor, Transforms, Text, Node } from "slate";
 import { Slate, withReact, Editable } from "slate-react";
+import { withHistory } from "slate-history";
+
+import isHotkey from "is-hotkey";
 
 import Toolbar from "components/Toolbar";
+import ToolbarItem from "components/ToobarItem";
 
-import { CustomEditor } from "Utils/CustomEditor";
+import {
+  CustomEditor,
+  Element,
+  Leaf,
+  serialize,
+  deserialize
+} from "Utils/TextEditor";
 
-const ITEMS = [
-  { name: "bold", active: false },
-  { name: "italic", active: false },
-  { name: "underline", active: false },
-  { name: "code", active: false },
-  { name: "quote right", active: false },
-  { name: "list", active: false },
-  { name: "list ol", active: false }
-];
+const ITEMS_MARK = ["bold", "italic", "underline"];
 
-// Define a serializing function that takes a value and returns a string.
-const serialize = value => {
-  return (
-    value
-      // Return the string content of each paragraph in the value's children.
-      .map(n => Node.string(n))
-      // Join them all with line breaks denoting paragraphs.
-      .join("\n")
-  );
-};
+const ITEMS_BLOCK = ["heading", "code", "quote right", "list", "list ol"];
 
-// Define a deserializing function that takes a string and returns a value.
-const deserialize = string => {
-  // Return a value array of children derived by splitting the string.
-  return string.split("\n").map(line => {
-    return {
-      children: [{ text: line }]
-    };
-  });
+const HOTKEYS = {
+  "mod+b": "bold",
+  "mod+i": "italic",
+  "mod+u": "underline"
 };
 
 export default function TextEditor() {
   // Create a Slate editor object that won't change across renders.
-  const editor = useMemo(() => withReact(createEditor()), []);
+  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
+
+  const renderElement = useCallback(props => <Element {...props} />, []);
+
+  // Define a leaf rendering function that is memoized with `useCallback`.
+  const renderLeaf = useCallback(props => <Leaf {...props} />, []);
 
   const [value, setValue] = useState(
     deserialize(localStorage.getItem("content") || "")
   );
 
-  const renderElement = useCallback(props => {
-    switch (props.element.type) {
-      case "code":
-        return <CodeElement {...props} />;
-      default:
-        return <DefaultElement {...props} />;
-    }
-  }, []);
+  // Forces ToolbarItem re-render on change active prop
+  const [, updateState] = useState();
+  const forceUpdate = useCallback(() => updateState({}), []);
 
-  function handleToolbar(button, editor) {
+  function handleToolbar(editor, button) {
     switch (button) {
       case "bold":
       case "italic":
       case "underline":
         CustomEditor.toggleMark(editor, button);
+        forceUpdate();
+        break;
+      case "code":
+      case "list ol":
+      case "quote right":
+      case "list":
+      case "heading":
+        CustomEditor.toggleBlock(editor, button);
+        forceUpdate();
+        break;
+
+      default:
+        console.log(button);
         break;
     }
   }
-
-  // Define a leaf rendering function that is memoized with `useCallback`.
-  const renderLeaf = useCallback(props => {
-    return <Leaf {...props} />;
-  }, []);
 
   return (
     <Slate
@@ -77,48 +74,37 @@ export default function TextEditor() {
         setValue(value);
         localStorage.setItem("content", serialize(value));
       }}>
-      <div>
-        <Toolbar
-          items={ITEMS}
-          onClick={name => {
-            handleToolbar(name, editor);
-          }}
-        />
-        <button
-          onMouseDown={event => {
-            event.preventDefault();
-            CustomEditor.toggleBoldMark(editor);
-          }}>
-          Bold
-        </button>
-        <button
-          onMouseDown={event => {
-            event.preventDefault();
-            CustomEditor.toggleCodeBlock(editor);
-          }}>
-          Code Block
-        </button>
-      </div>
+      <Toolbar>
+        {ITEMS_MARK.map((item, key) => (
+          <ToolbarItem
+            key={key}
+            name={item}
+            active={CustomEditor.isMarkActive(editor, item)}
+            onClick={() => handleToolbar(editor, item)}
+          />
+        ))}
+        {ITEMS_BLOCK.map((item, key) => (
+          <ToolbarItem
+            key={key}
+            name={item}
+            active={CustomEditor.isBlockActive(editor, item)}
+            onClick={() => handleToolbar(editor, item)}
+          />
+        ))}
+      </Toolbar>
       <Editable
         editor={editor}
         renderElement={renderElement}
         renderLeaf={renderLeaf}
-        onKeyDown={event => {
-          if (!event.ctrlKey) {
-            return;
-          }
-
-          switch (event.key) {
-            case "`": {
-              event.preventDefault();
-              CustomEditor.toggleCodeBlock(editor);
-              break;
-            }
-
-            case "b": {
-              event.preventDefault();
-              CustomEditor.toggleBoldMark(editor);
-              break;
+        spellCheck
+        autoFocus
+        onKeyDown={e => {
+          for (const hotkey in HOTKEYS) {
+            if (isHotkey(hotkey, e)) {
+              e.preventDefault();
+              const mark = HOTKEYS[hotkey];
+              CustomEditor.toggleMark(editor, mark);
+              forceUpdate();
             }
           }
         }}
@@ -126,31 +112,3 @@ export default function TextEditor() {
     </Slate>
   );
 }
-
-const CodeElement = props => {
-  return (
-    <pre {...props.attributes}>
-      <code>{props.children}</code>
-    </pre>
-  );
-};
-
-const DefaultElement = props => {
-  return <p {...props.attributes}>{props.children}</p>;
-};
-
-const Leaf = ({ attributes, leaf, children }) => {
-  if (leaf.bold) {
-    children = <strong>{children}</strong>;
-  }
-  if (leaf.code) {
-    children = <code>{children}</code>;
-  }
-  if (leaf.italic) {
-    children = <em>{children}</em>;
-  }
-  if (leaf.underline) {
-    children = <u>{children}</u>;
-  }
-  return <span {...attributes}>{children}</span>;
-};
