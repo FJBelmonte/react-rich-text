@@ -8,13 +8,7 @@ import isHotkey from "is-hotkey";
 import Toolbar from "components/Toolbar";
 import ToolbarItem from "components/ToobarItem";
 
-import {
-  CustomEditor,
-  Element,
-  Leaf,
-  serialize,
-  deserialize
-} from "Utils/TextEditor";
+import { CustomEditor, Element, Leaf } from "Utils/TextEditor";
 
 const ITEMS_MARK = [
   "bold",
@@ -89,7 +83,7 @@ export default function TextEditor() {
       case "quote right":
       case "list":
       case "heading":
-        return CustomEditor.isMarkActive(editor, button);
+        return CustomEditor.isBlockActive(editor, button);
       default:
         return false;
     }
