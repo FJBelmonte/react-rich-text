@@ -11,14 +11,14 @@ import ToolbarItem from "components/ToobarItem";
 import { CustomEditor, Element, Leaf } from "Utils/TextEditor";
 
 const ITEMS_MARK = [
-  "bold",
-  "italic",
-  "underline",
-  "heading",
-  "code",
-  "quote right",
-  "list",
-  "list ol"
+  { name: "bold", icon: "bold", type: "mark" },
+  { name: "italic", icon: "italic", type: "mark" },
+  { name: "underline", icon: "underline", type: "mark" },
+  { name: "heading-one", icon: "heading", type: "block" },
+  { name: "code", icon: "code", type: "block" },
+  { name: "block-quote", icon: "quote right", type: "block" },
+  { name: "bulleted-list", icon: "list", type: "block" },
+  { name: "numbered-list", icon: "list ol", type: "block" }
 ];
 
 const HOTKEYS = {
@@ -49,44 +49,24 @@ export default function TextEditor() {
   const [, updateState] = useState();
   const forceUpdate = useCallback(() => updateState({}), []);
 
-  function handleToolbar(editor, button) {
-    switch (button) {
-      case "bold":
-      case "italic":
-      case "underline":
-        CustomEditor.toggleMark(editor, button);
-        forceUpdate();
-        break;
-      case "code":
-      case "list ol":
-      case "quote right":
-      case "list":
-      case "heading":
-        CustomEditor.toggleBlock(editor, button);
-        forceUpdate();
-        break;
-
-      default:
-        console.log(button);
-        break;
+  function handleToolbar(editor, button, type) {
+    if (type === "mark") {
+      CustomEditor.toggleMark(editor, button);
     }
+    if (type === "bold") {
+      CustomEditor.toggleBlock(editor, button);
+    }
+    forceUpdate();
   }
 
-  function verifyActiveItem(editor, button) {
-    switch (button) {
-      case "bold":
-      case "italic":
-      case "underline":
-        return CustomEditor.isMarkActive(editor, button);
-      case "code":
-      case "list ol":
-      case "quote right":
-      case "list":
-      case "heading":
-        return CustomEditor.isBlockActive(editor, button);
-      default:
-        return false;
+  function verifyActiveItem(editor, button, type) {
+    if (type === "mark") {
+      return CustomEditor.isMarkActive(editor, button);
     }
+    if (type === "block") {
+      return CustomEditor.isBlockActive(editor, button);
+    }
+    return null;
   }
 
   return (
@@ -99,12 +79,12 @@ export default function TextEditor() {
         localStorage.setItem("content", content);
       }}>
       <Toolbar>
-        {ITEMS_MARK.map((item, key) => (
+        {ITEMS_MARK.map(({ name, icon, type }, key) => (
           <ToolbarItem
             key={key}
-            name={item}
-            active={verifyActiveItem(editor, item)}
-            onClick={() => handleToolbar(editor, item)}
+            name={icon}
+            active={verifyActiveItem(editor, name, type)}
+            onClick={() => handleToolbar(editor, name, type)}
           />
         ))}
       </Toolbar>
@@ -120,7 +100,7 @@ export default function TextEditor() {
             if (isHotkey(hotkey, e)) {
               e.preventDefault();
               const mark = HOTKEYS[hotkey];
-              handleToolbar(editor, mark);
+              handleToolbar(editor, mark, "mark");
               forceUpdate();
             }
           }

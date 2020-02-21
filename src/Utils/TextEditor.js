@@ -59,17 +59,17 @@ export const Element = ({ attributes, children, element }) => {
           <code>{children}</code>
         </pre>
       );
-    case "quote right":
+    case "block-quote":
       return <blockquote {...attributes}>{children}</blockquote>;
-    case "list":
+    case "bulleted-list":
       return <ul {...attributes}>{children}</ul>;
-    case "heading":
+    case "heading-one":
       return <h1 {...attributes}>{children}</h1>;
     case "heading-two":
       return <h2 {...attributes}>{children}</h2>;
     case "list-item":
       return <li {...attributes}>{children}</li>;
-    case "list ol":
+    case "numbered-list":
       return <ol {...attributes}>{children}</ol>;
     default:
       return <p {...attributes}>{children}</p>;
